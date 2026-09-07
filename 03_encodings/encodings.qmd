@@ -26,45 +26,76 @@ For each chart, jot down the following:
 
 ![Chart 1](./tenure_bars_vert.png)
 
-type of chart: bar chart
-
+type: bar chart (vertical)
+encodings: x = name of location, y = homeownership rate (%)
+primary reading: length of bars
+patterns: ranking of the same variable across different locations
+markings: gridlines at intervals of 20%
+other: pretty self-explanatory, I dont see any chart junk
 
 
 ### Chart 2
 
 ![Chart 2](./tenure_bars_horiz.png)
+type: bar chart (horizontal)
+encodings: x = homeowndership rate (%), y = location name
+primary reading: length of the bars
+patterns: same as above, just flipped axes
+markings: gridlines at each interval of 20%
+other: same as above, no chart junk
 
-_Fill in notes here_
 
 ### Chart 3
 
 ![Chart 3](./tenure_dots.png)
+type: dot plot
+encodings: y = location name, x = homeownership rate in %
+primary reading: position along the x axis
+patterns: ranking the same variable (homeownership rate) but at different locations
+markings: gridlines every 10%
+other: none
 
-_Fill in notes here_
 
 ### Chart 4
 
 ![Chart 4](./tenure_box.png)
+type: box and whisker plot
+encodings: y = location (county), x = homeowndership rate (%)
+primary reading: median line, 1st and 3rd quartile lines, position of box along x
+patterns:  different spread median and bottom limit of range within each county, even though the IQRs of most of them lie at similar x values
+markings: gridlines at each 12.5%, outlier dots, whiskers
+other: 
 
-_Fill in notes here_
 
 ### Chart 5
 
 ![Chart 5](./unemp_line.png)
-
-_Fill in notes here_
+type: two series line graph
+encodings: x = year (i think quarterly/continuous?), y = unemployment rate (%)
+primary reading: slope of line, peaks 
+patterns: comparing the trends between two differejnt locations over time  
+markings: gridlines every 2 years, legend showing what color is which city
+other: none
 
 ### Chart 6
 
 ![Chart 6](./unemp_area.png)
 
-_Fill in notes here_
+type: area chart
+encodings: x = year (quarterly/continuous?), y = unemployment rate (%)
+patterns: slope, peaks
+markings: trends over time
+other: none
 
 ### Chart 7
 
 ![Chart 7](./homeownership_income_scatter.png)
 
-_Fill in notes here_
+type: scatter plot
+encodings: x = median household income ($), y = homeownership rate (%)
+patterns: coorelation between 2 variables (median hh income and homeownership rate)
+markings: size of dot, color of dot, gridlines every $12500 and 10%, legend showing what colors and sizes mean
+other: none
 
 
 ## Correcting encodings
@@ -75,10 +106,6 @@ For each of these charts, write down what is wrong with the encodings. Then edit
 #| label: setup
 library(dplyr)
 library(ggplot2)
-
-# kept giving me a warning that said these were built under earlier versions of R? was getting annoying so turned off cuz I dont think that matters
-suppressWarnings(library(ggplot2))
-suppressWarnings(library(dplyr))
 
 # set a default theme
 theme_set(
@@ -108,7 +135,8 @@ acs_balt <- justviz::acs |>
 
 ![Chart 8, original version](./bad_line.png)
 
-_Fill in notes here_
+makes baltimore city difference look more extreme than it is in reality
+
 
 ```{r}
 #| label: chart-8-correction
@@ -117,7 +145,7 @@ _Fill in notes here_
 acs_balt |>
     mutate(datasource = "acs") |>
     ggplot(aes(x = name, y = homeownership, group = datasource)) +
-    geom_line() +
+    geom_col() +
     scale_x_discrete(labels = scales::label_wrap(10)) +
     scale_y_continuous(labels = scales::label_percent()) +
     labs(title = "Homeownership rate by location, 2024")
@@ -127,15 +155,16 @@ acs_balt |>
 
 ![Chart 9, original version](./bad_bubble.png)
 
-_Fill in notes here_
 
 ```{r}
 #| label: chart-9-correction
 # Hint: compare to chart 7
 justviz::acs |>
     filter(level == "county") |>
-    ggplot(aes(x = median_hh_income, y = homeownership, size = total_hh)) +
-    geom_point(alpha = 0.8) +
+    ggplot(aes(x = median_hh_income, 
+               y = homeownership, 
+               size = total_hh,) +
+    geom_point(alpha = 0.8)) +
     scale_radius(labels = scales::label_comma(), range = c(1, 10)) +
     scale_x_continuous(labels = scales::label_currency()) +
     scale_y_continuous(labels = scales::label_percent()) +
@@ -164,7 +193,7 @@ cost_burden <- acs_balt |>
     )
 
 ggplot(cost_burden, aes(x = name, y = cost_burden, fill = tenure)) +
-    geom_col(width = 0.8, position = position_stack()) +
+    geom_bar(width = 0.8, position = position_stack()) +
     scale_fill_manual(values = qual_pal[c(1, 2)]) +
     scale_x_discrete(labels = scales::label_wrap(10)) +
     scale_y_continuous(labels = scales::label_percent()) +

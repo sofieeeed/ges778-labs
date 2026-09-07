@@ -1,0 +1,252 @@
+---
+title: Writing functions and helpers
+format: gfm
+---
+
+If you need a reference for writing functions, take a look at [this chapter](https://r4ds.hadley.nz/functions.html) from _R for Data Science_.
+
+## 1. Leaving the house
+
+Think about what you need in order to leave the house for work or school. What things do you need to get out the door—some variation on "phone, wallet, keys"? Think about what influences your list, e.g. maybe you switch modes of transportation, which will decide whether you need car keys, a bike helmet and lights, or money on CharmPass. Fill those in here:
+
+**Things you _always_ need:**
+keys
+phone
+wallet
+glasses
+airpods
+backpack
+- 
+
+**Things you _sometimes_ need**, including what determines whether you need each thing:
+change of clothes
+journal
+-
+
+Write it out as pseudocode here, filling in the blanks and adding more fake code:
+
+``` 
+function leaving_the_house {
+    always_need phone, wallet, keys, airpods, backpack, glasses
+    if monday, wednesday then bring change of clothes
+    if tuesday, bring journal
+    
+}
+```
+
+From your pseudocode, decide on your arguments and write out a working R function. It should return a list or string giving the things you'll need based on the arguments you give. If you want to get fancy, use some calls to `print` or `cat` to make a nice printout as well.
+
+```{r}
+#| label: leaving-the-house-definition
+leaving_the_house <- function(day) {
+  
+always <- c("phone", "wallet", "keys", "airpods", "sunglasses", "bag")
+
+  if (day %in% c("Monday", "Wednesday")) {
+    # days I go to work
+    items <- c(always, "change of clothes")
+  } else if (day %in% c("Tuesday")) {
+    # I have a 5 hour break between classes on Tuesdays :/
+    items <- c(always, "journal")
+  } else {
+    items <- always
+  }
+  return(items)
+}
+```
+
+
+Then call your function a few times with different arguments. Start with ones that match what you did today, then try it with what you'll need to do tomorrow.
+
+```{r}
+#| label: leaving-the-house-calls 
+# examples from original code
+today <- leaving_the_house("Thursday")
+today
+
+tomorrow <- leaving_the_house("Friday")
+tomorrow
+
+# both are the same so here's me calling the functions for other days and testing it works
+leaving_the_house("Monday")
+```
+
+
+## 2. Chart labels
+
+### Labels across one range
+
+You're making a bar chart, and you want to place labels near the end of each bar. The labels should be inside the bar, but you want a little bit of space between the top of the text and the end of the bar, like so:
+
+![Bars with labels](example_plot1.png)
+
+Figure out the arithmetic you'll need to do to place labels in this way. You want to choose a certain amount that you'll nudge the text down from the end of each bar. I'd recommend drawing this out by hand on paper, first for just one bar, then for all 5. Again, start with pseudocode if that might help, or jump right into an R function. Use the data in the next chunk; it's not exactly the same as what's in the example chart, but it's generated similarly.
+
+```{r}
+#| label: setup 
+library(dplyr)
+library(ggplot2)
+
+data1 <- structure(
+    list(group = c("A", "B", "C", "D", "E"), value = c(19, 18, 13, 15, 20)),
+    row.names = c(NA, -5L),
+    class = c("tbl_df", "tbl", "data.frame")
+)
+
+data1
+```
+
+The first version of your function will take a vector `y`, for the y value of each observation. It should return a vector of the same length, with the position at which you want to place each text label. So if you decide that values 2, 3, and 5 should have labels placed at 1.5, 2.5, and 4.5, then calling
+
+```r
+label_nudge(c(2, 3, 5))
+```
+
+should return `c(1.5, 2.5, 4.5)`. You'll probably find this looks best if you nudge every value down by a fixed amount; your task is to figure out what that amount is.
+
+```{r}
+#| label: labels-definition-1
+label_nudge <- function(y) {
+
+    # Calculate an offset equal to 5% of the largest bar
+    offset <- 0.05 * max(y)
+
+    # Place labels slightly below the top of each bar
+    label_position <- y - offset
+
+    return(label_position)
+}
+
+label_nudge(data1$value)
+```
+
+Now you should be able to call that function, assign the nudged values to a variable in your data frame, and use those nudged values to place labels. Keep adjusting the function until the label placement looks how you want. If you haven't used `ggplot` much yet, don't worry; the code I've set up should run for you.
+
+```{r}
+#| label: label-plot-1
+data1$y_nudge <- label_nudge(data1$value)
+ggplot(data1, aes(x = group, y = value)) +
+    geom_col() +
+    geom_text(
+        aes(label = value, y = y_nudge),
+        color = "white",
+        size = 6,
+        vjust = 1
+    )
+# vjust is the vertical justification; vjust = 1 means labels will be aligned at the top
+```
+
+### Scaling your function
+
+Part of the purpose of writing a function is that it can scale to other situations. If you hardcoded a certain amount to nudge your labels by for the first range, it might not work as well for a different range. Try repeating what you just did (calling the function to set label positions) with a different dataset, and see if you still like the placement. If not, you'll need some different calculations to fit different ranges of numbers. 
+
+```{r}
+#| label: label-plot-new-range 
+data2 <- structure(
+    list(group = c("A", "B", "C", "D", "E"), value = c(99, 45, 44, 60, 62)),
+    row.names = c(NA, -5L),
+    class = c("tbl_df", "tbl", "data.frame")
+)
+
+data2
+```
+
+```{r}
+#| label: label-plot-new-range-result
+data2$y_nudge <- label_nudge(data2$value)
+
+ggplot(data2, aes(x = group, y = value)) +
+    geom_col() +
+    geom_text(
+        aes(label = value, y = y_nudge),
+        color = "white",
+        size = 6,
+        vjust = 1
+    )
+```
+
+## 3. Number formatting
+
+Develop a few functions for formatting different types of numbers---we'll start with percentages, currency, and large numbers (over 1,000). 
+
+### Simple functions
+
+First, we'll just use base R functions, `round`, `formatC`, and `paste0` (like `paste`, but with a default of no separator). Here are the numbers you'll be formatting as integers, with the desired output:
+
+```{r}
+#| label: fmt-values 
+percent_vals <- c(0.05, 0.1, 0.512, 0.678) # want 5%, 10%, 51%, 68%
+dollar_vals <- c(100, 110.70, 823, 1123) # want $100; $111; $823; $1,123
+comma_vals <- c(2345, 10123.4, 999, 1205) # want 2,345; 10,123; 999; 1,205
+```
+
+```{r}
+#| label: fmt-functions-1
+# define functions here
+
+percent_vals <- c(0.05, 0.1, 0.512, 0.678) # want 5%, 10%, 51%, 68%
+dollar_vals <- c(100, 110.70, 823, 1123) # want $100; $111; $823; $1,123
+comma_vals <- c(2345, 10123.4, 999, 1205) # want 2,345; 10,123; 999; 1,205
+
+# paste0 for no spaces between things, paste for spaces
+
+percent1 <- function(x) {
+  paste0(round(x * 100), "%")
+}
+percent1(percent_vals)
+
+dollar1 <- function(x) {
+  paste0("$", formatC(round(x), format = "f", big.mark = ",", digits = 0))
+}
+dollar1(dollar_vals)
+
+comma1 <- function(x) {
+  formatC(round(x), format = "f", big.mark = ",", digits = 0)
+}
+comma1(comma_vals)
+```
+
+### Generating functions
+
+The package `scales` has helper functions you can use; these drive many of the calculations under the hood in ggplot. Read through the package docs to get familiar, especially with the `label_*` functions (functions with names starting with "label_").
+
+First, call one of the `scales` functions and assign the result to a variable. Then see what type of object it is:
+
+```{r}
+#| label: function-factories
+number <- scales::label_number()
+class(number)
+
+# calling another scales function
+color <- scales::pal_viridis()()
+class(color)
+```
+
+The `scales::label_*` functions are actually _function factories_, functions that return functions. This might seem weird, but they help you develop custom number formatting functions that are both specific and reusable. You can read details about function factories in [Advanced R](https://adv-r.hadley.nz/function-factories.html).
+
+Define another set of functions, now using `scales::label_percent`, `scales::label_currency`, and `scales::label_comma`. For example, if you want to label numbers with 2 numbers after the decimal point, you can use `scales::label_number` to create a labeller function:
+
+```{r}
+#| label: scales-example 
+decimal <- scales::label_number(accuracy = 0.01)
+decimal(c(1.234, 5.1, 10.999))
+
+#| label: scales-label-percent
+percent <- scales::label_percent(accuracy = 0.01)
+percent(c(1.234, 5.1, 10.999))
+
+#| label: scales-label-currency
+currency <- scales::label_currency(accuracy = 0.01)
+currency(c(1.234, 5.1, 10.999))
+
+#| label: scales-label-comma
+comma <- scales::label_comma(accuracy = 0.01)
+comma(c(1.234, 5.1, 10.999))
+
+```
+
+## 4. Finishing up
+
+If you came up with any functions you think will be useful moving forward, copy them over to `utils/helper_functions.R` so you can use them in any of your labs and projects.
+
+
