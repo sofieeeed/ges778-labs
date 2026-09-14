@@ -11,14 +11,22 @@ library(ggplot2)
 
 acs_tracts <- justviz::acs |>
     dplyr::filter(level == "tract") |>
-    dplyr::select(county, name, NULL) # replace NULL with the columns you want to use
+    dplyr::select(county, 
+                  name, 
+                  median_hh_income, 
+                  no_vehicle_hh,
+                  seasonal_units,
+                  diversity_idx,
+                  foreign_born,
+                  pop_density) # replace NULL with the columns you want to use
+head(acs_tracts)
 ```
 
 Look at the first few rows of data, and print a summary. Jot down anything that seems noteworthy---missing values, very high or low values, etc.
 
 ```{r}
 #| label: summary
- 
+ summary(acs_tracts)
 ```
 
 ## Variation
@@ -27,7 +35,30 @@ For each numeric variable in your data, make a histogram. Adjust the number of b
 
 ```{r}
 #| label: histograms
- 
+ ggplot(acs_tracts, aes(x = median_hh_income)) +
+    geom_histogram(bins = 50, 
+                   color = "white",
+                   fill = "red")
+ ggplot(acs_tracts, aes(x = no_vehicle_hh)) +
+    geom_histogram(bins = 50, 
+                   color = "white",
+                   fill = "orange")
+ ggplot(acs_tracts, aes(x = seasonal_units)) +
+    geom_histogram(bins = 50, 
+                   color = "white",
+                   fill = "yellow")
+ ggplot(acs_tracts, aes(x = diversity_idx)) +
+    geom_histogram(bins = 50, 
+                   color = "white",
+                   fill = "green")
+ ggplot(acs_tracts, aes(x = foreign_born)) +
+    geom_histogram(bins = 50, 
+                   color = "white",
+                   fill = "blue")
+ ggplot(acs_tracts, aes(x = pop_density)) +
+    geom_histogram(bins = 50, 
+                   color = "white",
+                   fill = "purple")
 ```
 
 ## Unusual values
