@@ -36,25 +36,40 @@ For each numeric variable in your data, make a histogram. Adjust the number of b
 ```{r}
 #| label: histograms
  ggplot(acs_tracts, aes(x = median_hh_income)) +
-    geom_histogram(bins = 50, 
+    geom_histogram(bins = 50,
                    color = "white",
                    fill = "red")
- ggplot(acs_tracts, aes(x = no_vehicle_hh)) +
+```
+
+```{r}
+ggplot(acs_tracts, aes(x = no_vehicle_hh)) +
     geom_histogram(bins = 50, 
                    color = "white",
                    fill = "orange")
- ggplot(acs_tracts, aes(x = seasonal_units)) +
+```
+ 
+```{r}
+  ggplot(acs_tracts, aes(x = seasonal_units)) +
     geom_histogram(bins = 50, 
                    color = "white",
                    fill = "yellow")
+```
+
+```{r}
  ggplot(acs_tracts, aes(x = diversity_idx)) +
     geom_histogram(bins = 50, 
                    color = "white",
                    fill = "green")
+```
+
+``` {r}
  ggplot(acs_tracts, aes(x = foreign_born)) +
     geom_histogram(bins = 50, 
                    color = "white",
                    fill = "blue")
+```
+
+``` {r}
  ggplot(acs_tracts, aes(x = pop_density)) +
     geom_histogram(bins = 50, 
                    color = "white",
