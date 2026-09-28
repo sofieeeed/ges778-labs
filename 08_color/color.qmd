@@ -26,12 +26,14 @@ A B D F E C
 and so on.
 
 Try each set on at least 2 backgrounds. Take note of what difficulties you have, how you see colors shift depending on their neighbors, and which background is easiest.
+  I had the qualitative color set. I picked the blue, blue/green, light yellow/green, pink, and orange strips. 
 
 ### Qualitative colors
 
 There are 2 types of shapes in the qualitative sets; start with the bars, not the lines. You're designing charts for a client, and these colors fit their branding palette, so you're stuck with them. You have a chart with 5 groups, so pick 5 colors. 
 
 * Chart 1: Lay out the bar pieces touching side by side to simulate bar charts. If two neighboring bars are too similar, shuffle them around until they're more distinct. 
+
 * Chart 2: Move the bars apart slightly so there's a gap in between them. Does this make any pairs of colors easier to tell apart?
 * Chart 3: Move the pieces around to simulate stacked bars. Again, shuffle pieces if you need to to keep them distinct. 
 * Chart 4: Using the skinny strips in the same 5 colors you chose, simulate a line chart. Do those colors still hold up with smaller markings?
@@ -77,9 +79,14 @@ cost_burden <- acs_county |>
     ) |>
     dplyr::mutate(name = forcats::as_factor(name))
 
+# qualitative
+
 ggplot(cost_burden, aes(x = name, y = share, fill = group)) +
     geom_col(position = position_dodge2()) +
-    labs(title = "Cost burden and severe cost burden rates, 2024")
+    labs(title = "Cost burden and severe cost burden rates, 2024") +
+    scale_fill_brewer(palette = "Accent")
+
+# i like the look of this one as is with the accent palette
 ```
 
 
@@ -94,9 +101,12 @@ age <- acs_county |>
     ) |>
     dplyr::mutate(dplyr::across(c(name, group), forcats::as_factor))
 
+# sequential
+
 ggplot(age, aes(x = name, y = share, fill = group)) +
     geom_col(position = position_fill(reverse = TRUE)) +
-    labs(title = "Population by age group, 2024")
+    labs(title = "Population by age group, 2024") +
+    scale_fill_brewer(palette = "PuBuGn")
 ```
 
 
@@ -111,9 +121,20 @@ race <- acs_county |>
     ) |>
     dplyr::mutate(dplyr::across(c(name, group), forcats::as_factor))
 
+pal_race <- c(
+    "white"      = "#66C2A5",
+    "black"      = "#FC8D62",
+    "latino"     = "#8DA0CB",
+    "asian"      = "#E78AC3",
+    "other_race" = "grey70"
+)
+
+# used grey here for "other race" b/c its a broad category and I thibk this is a good example of good grey usage :)
+
 ggplot(race, aes(x = name, y = share, fill = group)) +
     geom_col(position = position_fill(reverse = TRUE)) +
-    labs(title = "Population by race/ethnicity, 2024")
+    labs(title = "Population by race/ethnicity, 2024") +
+    scale_fill_manual(values = pal_race)
 ```
 
 ```{r}
@@ -129,19 +150,37 @@ acs_tract <- justviz::acs |>
         )
     )
 
+pal_county <- c(
+    "Baltimore city"       = "#E41A1C",
+    "Baltimore County"     = "#377EB8",
+    "Anne Arundel County"  = "#4DAF4A",
+    "Howard County"        = "#FF7F00"
+)
+
+# colors from palette set1 but selected to pop out more
+
 ggplot(acs_tract, aes(x = foreign_born, y = diversity_idx, color = county)) +
     geom_point(alpha = 0.7) +
-    labs(title = "Diversity index vs % foreign-born by tract, 2024")
+    labs(title = "Diversity index vs % foreign-born by tract, 2024") +
+    scale_color_manual(values = pal_county)
 ```
 
 ```{r}
 #| label: scatter-2
+
+pal_baltimore <- c(
+  "Baltimore County" = "#1B7A6E",
+  "Nearby counties" = "#D9531E"
+  
+)
+
 ggplot(
-    acs_tract,
-    aes(x = foreign_born, y = diversity_idx, color = balt_county)
-) +
+  acs_tract, 
+  aes(x = foreign_born, y = diversity_idx, color = balt_county)) +
     geom_point(alpha = 0.7) +
-    labs(title = "Diversity index vs % foreign-born by tract, 2024")
+    labs(title = "Diversity index vs % foreign-born by tract, 2024") +
+  scale_color_manual(values = pal_baltimore)
+
 ```
 
 ### Revising a palette
@@ -153,7 +192,7 @@ Get a copy of a premade sequential palette with only 3 colors. Print it to see i
 ```{r}
 #| label: pal-1
 # with colorbrewer
-pal_to_adjust <- RColorBrewer::brewer.pal(n = 3, name = "") # plug in a name here
+pal_to_adjust <- RColorBrewer::brewer.pal(n = 3, name = "BrBG") # plug in a name here
 # or with carto
 # pal_to_adjust <- rcartocolor::carto_pal(n = 3, name = "") # plug in a name here
 print(pal_to_adjust)
@@ -166,18 +205,18 @@ Now remove the middle color so you just have the two end points. Switch between 
 JavaScript uses arrays similar to vectors in R, so you'll just need to change the syntax slightly. Paste it in the next code chunk, then change it from being wrapped in brackets to being wrapped in the `c()` function, e.g. change
 
 ```javascript
-['#d1eeea', '#a1c7ca', '#74a1ac', '#4c7b90', '#2a5674']
+['#d8b365', '#c0b478', '#a6b489', '#86b49b', '#5ab4ac']
 ```
 
 to
 
 ```r
-c('#d1eeea', '#a1c7ca', '#74a1ac', '#4c7b90', '#2a5674')
+c('#d8b365', '#c0b478', '#a6b489', '#86b49b', '#5ab4ac')
 ```
 
 ```{r}
 #| label: pal-paste
-pal_chrom <- c() # replace with your palette from chromatta
+pal_chrom <- c('#d8b365', '#c0b478', '#a6b489', '#86b49b', '#5ab4ac') # replace with your palette from chromatta
 ```
 
 Then use that new palette with `scale_fill_manual` in the chart below.
