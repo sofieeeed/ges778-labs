@@ -160,7 +160,7 @@ pal_county <- c(
 # colors from palette set1 but selected to pop out more
 
 ggplot(acs_tract, aes(x = foreign_born, y = diversity_idx, color = county)) +
-    geom_point(alpha = 0.7) +
+    geom_point(shape = 18, alpha = 0.7) +
     labs(title = "Diversity index vs % foreign-born by tract, 2024") +
     scale_color_manual(values = pal_county)
 ```
