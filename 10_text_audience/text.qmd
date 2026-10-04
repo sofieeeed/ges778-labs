@@ -9,11 +9,15 @@ Get set up by sourcing the formatters utility script, plus any other scripts of 
 #| label: setup
 # source formatters script. add any other scripts in your utils folder you have
 source(here::here("utils/formatters.R"))
+source(here::here("utils/palettes.R"))
+source(here::here("utils/helper_functions.R"))
 library(ggplot2)
+library(ggtext)
+library(showtext)
+library(justviz)
 
 # placeholders
-# qual_pal <- rcartocolor::carto_pal(name = "Pastel")
-# qual_pal <- RColorBrewer::brewer.pal(n = 5, name = "Set2")
+qual_pal <- rcartocolor::carto_pal(name = "Pastel")
 ```
 
 ## Adding text within a chart
@@ -23,8 +27,15 @@ Go back to lab 2 where we defined a function to place labels slightly inward fro
 ```{r}
 #| label: label-nudge-function
 # placeholder---this just returns the input value
-label_nudge <- function(x) {
-    x
+label_nudge <- function(y) {
+
+    # Calculate an offset equal to 5% of the largest bar
+    offset <- 0.05 * max(y)
+
+    # Place labels slightly below the top of each bar
+    label_position <- y - offset
+
+    return(label_position)
 }
 ```
 
@@ -38,53 +49,57 @@ One helpful pair of `geom_text` arguments is `hjust`/`vjust`, which set the hori
 
 ```{r}
 #| label: label-nudge-1
-dental_visit <- justviz::cdc |>
-    dplyr::filter(
-        location %in%
-            c(
-                "US",
-                "Maryland",
-                "Baltimore city",
-                "Baltimore County",
-                "Howard County",
-                "Anne Arundel County"
-            )
-    ) |>
-    dplyr::filter(indicator == "Dental visit") |>
-    # arrange to make sure locations are ordered by level, then alphabetically
-    dplyr::arrange(level, location) |>
-    dplyr::mutate(location = forcats::as_factor(location)) |>
-    dplyr::mutate(value = value / 100) |>
-    # placeholders---change with your own code
-    dplyr::mutate(nudged_value = label_nudge(value)) |>
-    dplyr::mutate(pct_value = value)
 
-ggplot(dental_visit, aes(x = location, y = value)) +
-    geom_col(fill = qual_pal[1]) +
+# new scales func, pretty easy to setup so just did it here
+pct1 <- scales::label_percent(accuracy = 0.1)
+
+dentist_chart <- ggplot(dental_visit, aes(x = location, y = value)) +
+    geom_col(fill = qual_pal[3]) +
     geom_text(
         aes(y = nudged_value, label = pct_value),
         size = 14,
         size.unit = "pt",
         fontface = "bold",
-        hjust = 0.5
-    )
+        hjust = 0.5,
+        vjust = 1,
+        color = "#222222"
+    ) +
+    labs(
+        title = "Percentage of People Who Went to the Dentist in 2022",
+        x = "Location",
+        y = "Percentage"
+    ) +
+    scale_y_continuous(labels = percent100) +
+    scale_x_discrete(labels = scales::label_wrap(12))
+
+dentist_chart
 ```
 
 Does that function work as well when the chart is flipped to horizontal? Adjust arguments of the function and in your `geom_text` call. 
 
 ```{r}
 #| label: label-nudge-2
-ggplot(dental_visit, aes(x = value, y = location)) +
-    geom_col(fill = qual_pal[1]) +
+#| 
+dentist_chart_h <- ggplot(dental_visit, aes(x = value, y = location)) +
+    geom_col(fill = qual_pal[4]) +
     geom_text(
         aes(x = nudged_value, label = pct_value),
         size = 14,
         size.unit = "pt",
         fontface = "bold",
-        vjust = 0.5
+        hjust = 1,
+        vjust = 0.5,
+        color = "#222222"
     ) +
-    # something I learned this week is that this now works for discrete scales!
+    labs(
+        title = "Percentage of People Who Went to the Dentist in 2022",
+        x = "Percentage",
+        y = "Location"
+    ) +
+    scale_x_continuous(labels = percent100) +
     coord_cartesian(reverse = "y")
+
+dentist_chart_h
 ```
 
 ## Audience
@@ -100,11 +115,116 @@ Use [wordcalc](https://www.wordcalc.com/readability/) or another online Flesch-K
 
 For both charts, write alt text that will explain the chart to someone using a screen reader (put it in the `fig-alt` comment). Follow the recommendations from [Amy Cesal's post](https://medium.com/nightingale/writing-alt-text-for-data-visualization-2a218ef43f81?sk=32db60d651933b5ac2c5b6507f3763b5).
 
+```{r}
+#| label: og-chart-code
+
+chart2 <- tracts |>
+  dplyr::filter(!is.na(bachelors)) |>
+  dplyr::mutate(county = stringr::str_remove(county, " County")) |>
+  ggplot(aes(x = bachelors,
+             y = forcats::fct_reorder(county, bachelors, .fun = median))) +
+  geom_boxplot(outlier.shape = NA,
+               fill = NA,
+               color = sunlight_pal$text_light,
+               linewidth = px_lw(2),
+               width = 0.5) +
+  geom_point(position = position_jitter(height = 0.15),
+             color = sunlight_pal$main_blue,
+             alpha = 0.5,
+             size = 1.1) +
+  scale_x_continuous(labels = scales::label_percent(),
+                     limits = c(0, NA),
+                     expand = expansion(mult = c(0, 0.05))) +
+  labs(
+    title = paste0(
+      "**Bachelor's degrees** by county in Central MD<br>",
+      "<span style='font-family:georgia; font-style:italic; font-size:12px; color:",
+      sunlight_pal$text_light, "'>",
+      "Each dot is a census tract; boxes show the middle 50% of tracts in each county.</span>"
+    ),
+    x       = "% with bachelor's degree",
+    y       = NULL,
+    caption = "**Source:** *U.S. Census Bureau*"
+  ) +
+  sunlight()
+
+chart2
+```
+
 
 ```{r}
 #| label: chart-agency
-#| fig-alt: ""
-#
+#| fig-alt: "Box plot showing a dot for each census tract representing the percent of adults with a bachelor's degree in five central Maryland counties: Howard, Montgomery, Frederick, Carroll, and Washington. Counties are sorted by their middle value, and Frederick County is highlighted in teal. The chart is meant to show how Frederick compares with nearby counties and how much rates vary between tracts inside each county. Howard County has the highest middle value, Washington County has the lowest, and Frederick sits in between."
+
+focus <- "Frederick County" 
+
+agency_df <- tracts |>
+    dplyr::filter(!is.na(bachelors)) |>
+    dplyr::mutate(
+        county = forcats::fct_reorder(county, bachelors, .fun = median),
+        is_focus = county == focus
+    )
+
+focus_median <- median(agency_df$bachelors[agency_df$is_focus])
+
+chart_agency <- ggplot(agency_df, aes(x = bachelors, y = county)) +
+    geom_boxplot(
+        outlier.shape = NA,
+        fill = NA,
+        color = sunlight_pal$text_light,
+        linewidth = px_lw(2),
+        width = 0.5
+    ) +
+    geom_point(
+        data = dplyr::filter(agency_df, !is_focus),
+        position = position_jitter(height = 0.15, seed = 1),
+        color = sunlight_pal$text_light,
+        alpha = 0.4,
+        size = 1.1
+    ) +
+    geom_point(
+        data = dplyr::filter(agency_df, is_focus),
+        position = position_jitter(height = 0.15, seed = 1),
+        color = sunlight_pal$main_blue,
+        alpha = 0.8,
+        size = 1.8
+    ) +
+# agency prob cares abt what is in its own county, so pretending theyre from frederick
+  annotate(
+        "text",
+        x = max(agency_df$bachelors[agency_df$is_focus]),
+        y = focus,
+        label = paste("Middle tract:", percent100(focus_median)),
+        hjust = -0.1,
+        vjust = 0.5,
+        size = 4,
+        fontface = "bold",
+        family = main_font,
+        color = sunlight_pal$main_blue
+    ) +
+    scale_color_manual(
+        values = c("TRUE" = sunlight_pal$main_blue, "FALSE" = sunlight_pal$text_light)
+    ) +
+    scale_x_continuous(
+        labels = percent100,
+        limits = c(0, NA),
+        expand = expansion(mult = c(0, 0.05))
+    ) +
+    guides(color = "none") +
+    labs(
+        title = paste0(
+            "**Share of adults with a bachelor's degree, by county**<br>",
+            "<span style='font-family:georgia; font-style:italic; font-size:12px; color:",
+            sunlight_pal$text_light, "'>",
+            "Each dot is a census tract. Boxes show the middle half of tracts in each county.</span>"
+        ),
+        x = "Adults with a bachelor's degree",
+        y = NULL,
+        caption = "**Source:** *U.S. Census Bureau*"
+    ) +
+    sunlight()
+
+chart_agency
 ```
 
 

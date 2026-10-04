@@ -1,21 +1,41 @@
----
-title: Themes and using a styleguide
-format: gfm
----
+# Themes and using a styleguide
 
-```{r}
+
+``` r
 library(ggplot2)
+```
+
+    Warning: package 'ggplot2' was built under R version 4.5.3
+
+``` r
 library(ggtext)
+```
+
+    Warning: package 'ggtext' was built under R version 4.5.3
+
+``` r
 library(showtext)
 ```
 
-Pick 2 charts of different types from previous labs. Copy & paste the code here. Looking at the styleguide you chose last week, build color palettes and a theme that will replicate aspects of that styleguide. You don't have to adhere to everything; feel free to tweak the colors or other specifications.
+    Warning: package 'showtext' was built under R version 4.5.3
+
+    Loading required package: sysfonts
+
+    Warning: package 'sysfonts' was built under R version 4.5.3
+
+    Loading required package: showtextdb
+
+    Warning: package 'showtextdb' was built under R version 4.5.3
+
+Pick 2 charts of different types from previous labs. Copy & paste the
+code here. Looking at the styleguide you chose last week, build color
+palettes and a theme that will replicate aspects of that styleguide. You
+don’t have to adhere to everything; feel free to tweak the colors or
+other specifications.
 
 I chose the sunlight style guide
 
-```{r}
-#| label: copy-old-charts
-
+``` r
 tracts <- justviz::acs |>
   dplyr::filter(
     level == "tract",
@@ -56,34 +76,17 @@ ggplot(tracts, aes(x = median_hh_income, y = bachelors)) +
     y = "% Bachelor's Degree"
   ) +
   theme_minimal()
-
-## dist of bach degrees from details lab
-
-
-bach_tracts <- justviz::acs |>
-  dplyr::filter(
-    level == "tract",
-    county %in% c("Frederick County", "Montgomery County", "Carroll County", "Washington County", "Howard County")
-  ) |>
-  dplyr::select(county, name, median_hh_income, bachelors) |>
-  dplyr::mutate(county = forcats::fct_reorder(county, median_hh_income, .fun = median, na.rm = TRUE)) |>
-  dplyr::mutate(county = forcats::fct_rev(county))
-
-ggplot(bach_tracts, aes(x = bachelors, y = county)) +
-  geom_boxplot(outlier.shape = NA) +
-  geom_jitter(height = 0.15, alpha = 0.5, color ="magenta") +
-  scale_x_continuous(labels = scales::label_percent()) +
-  labs(
-    title = "Distribution of % Population with a Bachelor's Degree in Central MD Counties",
-    x = "% Bachelor's Degree",
-    y = "County"
-  )
 ```
 
+    Warning in annotate("text", x = max(tracts$median_hh_income, na.rm = TRUE), :
+    Ignoring unknown parameters: `bg.colour` and `bg.r`
 
-```{r}
-#| label: themed-chart-1
+    Warning: Removed 1 row containing missing values or values outside the scale range
+    (`geom_point()`).
 
+![](styleguides_files/figure-commonmark/copy-old-charts-1.png)
+
+``` r
 # im gonna try and make it a better habit to mark up my code with notes like this so when i come back to it after a while im not completely lost. i hope you dont mind :)
 
 tracts <- justviz::acs |>
@@ -241,46 +244,16 @@ ggplot(tracts, aes(x = median_hh_income, y = bachelors)) +
     caption  = "**Source:** *U.S. Census Bureau*"
   ) +
   sunlight()
+```
 
+    Warning: Removed 1 row containing missing values or values outside the scale range
+    (`geom_point()`).
+
+![](styleguides_files/figure-commonmark/themed-chart-1-1.png)
+
+``` r
 ggsave("styleguides_themedchart1.png", width = 6.5, height = 5, dpi = 96)
 ```
 
-
-```{r}
-#| label: themed-chart-2
-
-chart2 <- tracts |>
-  dplyr::filter(!is.na(bachelors)) |>
-  dplyr::mutate(county = stringr::str_remove(county, " County")) |>
-  ggplot(aes(x = bachelors,
-             y = forcats::fct_reorder(county, bachelors, .fun = median))) +
-  geom_boxplot(outlier.shape = NA,
-               fill = NA,
-               color = sunlight_pal$text_light,
-               linewidth = px_lw(2),
-               width = 0.5) +
-
-  geom_point(position = position_jitter(height = 0.15),
-             color = sunlight_pal$main_blue,
-             alpha = 0.5,
-             size = 1.1) +
-  scale_x_continuous(labels = scales::label_percent(),
-                     limits = c(0, NA),
-                     expand = expansion(mult = c(0, 0.05))) +
-  labs(
-    title = paste0(
-      "**Bachelor's degrees** by county in Central MD<br>",
-      "<span style='font-family:georgia; font-style:italic; font-size:12px; color:",
-      sunlight_pal$text_light, "'>",
-      "Each dot is a census tract; boxes show the middle 50% of tracts in each county.</span>"
-    ),
-    x       = "% with bachelor's degree",
-    y       = NULL,
-    caption = "**Source:** *U.S. Census Bureau*"
-  ) +
-  sunlight()
-
-chart2
-ggsave("styleguides_themedchart2.png", plot = chart2, width = 6.5, height = 5, dpi = 100)
-```
-
+    Warning: Removed 1 row containing missing values or values outside the scale range
+    (`geom_point()`).
