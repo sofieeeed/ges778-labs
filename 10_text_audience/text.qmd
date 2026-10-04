@@ -158,16 +158,16 @@ chart2
 
 focus <- "Frederick County" 
 
-agency_df <- tracts |>
+agency <- tracts |>
     dplyr::filter(!is.na(bachelors)) |>
     dplyr::mutate(
         county = forcats::fct_reorder(county, bachelors, .fun = median),
         is_focus = county == focus
     )
 
-focus_median <- median(agency_df$bachelors[agency_df$is_focus])
+focus_median <- median(agency$bachelors[agency_df$is_focus])
 
-chart_agency <- ggplot(agency_df, aes(x = bachelors, y = county)) +
+chart_agency <- ggplot(agency, aes(x = bachelors, y = county)) +
     geom_boxplot(
         outlier.shape = NA,
         fill = NA,
@@ -176,14 +176,14 @@ chart_agency <- ggplot(agency_df, aes(x = bachelors, y = county)) +
         width = 0.5
     ) +
     geom_point(
-        data = dplyr::filter(agency_df, !is_focus),
+        data = dplyr::filter(agency, !is_focus),
         position = position_jitter(height = 0.15, seed = 1),
         color = sunlight_pal$text_light,
         alpha = 0.4,
         size = 1.1
     ) +
     geom_point(
-        data = dplyr::filter(agency_df, is_focus),
+        data = dplyr::filter(agency, is_focus),
         position = position_jitter(height = 0.15, seed = 1),
         color = sunlight_pal$main_blue,
         alpha = 0.8,
@@ -192,7 +192,7 @@ chart_agency <- ggplot(agency_df, aes(x = bachelors, y = county)) +
 # agency prob cares abt what is in its own county, so pretending theyre from frederick
   annotate(
         "text",
-        x = max(agency_df$bachelors[agency_df$is_focus]),
+        x = max(agency_df$bachelors[agency$is_focus]),
         y = focus,
         label = paste("Middle tract:", percent100(focus_median)),
         hjust = -0.1,
@@ -230,8 +230,52 @@ chart_agency
 
 ```{r}
 #| label: chart-public
-#| fig-alt: ""
-#
+#| fig-alt: "Bar chart of the typical share of adults with a bachelor's degree in five central Maryland counties, sorted from highest to lowest: Howard, Montgomery, Frederick, Carroll, and Washington. Frederick County's bar is highlighted in teal and the others are grey. The chart is meant to show how Frederick County compares with nearby counties. Howard County is the highest, Frederick is in the middle, and Washington County is lowest."
+
+focus <- "Frederick County"
+
+# generalizing by median in each county to make simpler
+public <- tracts |>
+    dplyr::filter(!is.na(bachelors)) |>
+    dplyr::summarize(typical = median(bachelors), .by = county) |>
+    dplyr::mutate(
+        county = forcats::fct_reorder(county, typical),
+        is_focus = county == focus,
+        label = percent100(typical)
+    )
+chart_public <- ggplot(public, aes(x = typical, y = county, fill = is_focus)) +
+    geom_col(width = 0.7) +
+    geom_text(
+        aes(label = label),
+        hjust = -0.15,
+        size = 6,
+        fontface = "bold",
+        family = main_font,
+        color = sunlight_pal$text_main
+    ) +
+    scale_fill_manual(
+        values = c("TRUE" = sunlight_pal$main_blue, "FALSE" = sunlight_pal$text_light)
+    ) +
+    scale_x_continuous(
+        labels = percent100,
+        limits = c(0, NA),
+        expand = expansion(mult = c(0, 0.25))
+    ) +
+    guides(fill = "none") +
+    labs(
+        title = paste0(
+            "**Frederick County is in the middle for college degrees in Maryland**<br>",
+            "<span style='font-family:georgia; font-style:italic; font-size:12px; color:",
+            sunlight_pal$text_light, "'>",
+            "Share of adults with a bachelor's degree in a typical neighborhood, by county</span>"
+        ),
+        x = NULL,
+        y = NULL,
+        caption = "**Source:** *U.S. Census Bureau*"
+    ) +
+    sunlight()
+
+chart_public
 ```
 
 ## Contrast
@@ -244,12 +288,50 @@ The RStudio add-in [colourpicker](https://github.com/daattali/colourpicker) help
 
 ```{r}
 #| label: contrast-labels-dark
-#
+# dark label (#222222) on a light fill (#a6cee3)
+dentist_chart_dark <- ggplot(dental_visit, aes(x = location, y = value)) +
+    geom_col(fill = "#c2ffea") +
+    geom_text(
+        aes(y = nudged_value, label = pct_value),
+        size = 14,
+        size.unit = "pt",
+        fontface = "bold",
+        hjust = 0.5,
+        vjust = 1,
+        color = "#0d1117"
+    ) +
+    labs(
+        title = "Percentage of People Who Went to the Dentist in 2022",
+        x = "Location",
+        y = "Percentage"
+    ) +
+    scale_y_continuous(labels = percent100) +
+    scale_x_discrete(labels = scales::label_wrap(12))
 
+dentist_chart_dark
 ```
 
 ```{r}
 #| label: contrast-labels-light
-#
+# light label (#f5f5f5) on a dark fill (#1f4e79)
+dentist_chart_light <- ggplot(dental_visit, aes(x = location, y = value)) +
+    geom_col(fill = "#0d1117") +
+    geom_text(
+        aes(y = nudged_value, label = pct_value),
+        size = 14,
+        size.unit = "pt",
+        fontface = "bold",
+        hjust = 0.5,
+        vjust = 1,
+        color = "#eefff8"
+    ) +
+    labs(
+        title = "Percentage of People Who Went to the Dentist in 2022",
+        x = "Location",
+        y = "Percentage"
+    ) +
+    scale_y_continuous(labels = percent100) +
+    scale_x_discrete(labels = scales::label_wrap(12))
 
+dentist_chart_light
 ```
