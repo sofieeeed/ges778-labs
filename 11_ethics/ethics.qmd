@@ -6,6 +6,12 @@ format: gfm
 ```{r}
 #| label: setup
 library(ggplot2)
+library(ggtext)
+library(dplyr)
+library(tidyverse)
+
+# patchwork::wrap_elements is the best tool for the note box that i've experimented with
+library(patchwork)
 ```
 
 ## Archived data
@@ -20,14 +26,44 @@ Do a little EDA, focused mainly on 2 or 3 indicators. Because of the long shape 
 #| label: subset
 ej_subset <- justviz::ej_natl |>
     # pick different indicators here
-    dplyr::filter(indicator %in% c("pm25", "no2")) |>
-    tidyr::pivot_wider(
+    filter(indicator %in% c("pm25", "no2")) |>
+    pivot_wider(
         id_cols = tract,
         names_from = indicator,
         values_from = c(value_ptile, d2_ptile, d5_ptile)
     )
 
 head(ej_subset)
+
+summary(ej_subset[, -1])
+
+ej_long <- ej_subset |>
+    pivot_longer(
+        -tract,
+        names_to = c("measure", "indicator"),
+        names_pattern = "(.+_ptile)_(.+)",
+        values_to = "ptile"
+    )
+
+ej_long |>
+    group_by(indicator, measure) |>
+    summarise(
+        median = median(ptile, na.rm = TRUE),
+        max = max(ptile, na.rm = TRUE),
+        .groups = "drop"
+    )
+```
+
+```{r}
+#| label: eda-dist
+#| fig-width: 7
+#| fig-height: 4
+ggplot(ej_long, aes(x = ptile)) +
+    geom_histogram(binwidth = 5, boundary = 0, fill = "#137B80", color = "#FFFFFF") +
+    facet_grid(indicator ~ measure) +
+    scale_x_continuous(limits = c(0, 100)) +
+    labs(x = "National percentile", y = "Number of tracts") +
+    theme_minimal()
 ```
 
 Draft a chart that compares two variables in your reshaped data. Because you want to be careful to compare apples to apples, you'll want to compare columns of the same measure type (d2_ptile) *or* for the same indicator (pm25). Write up a figure note to accompany the chart. This should include:
@@ -37,6 +73,53 @@ Draft a chart that compares two variables in your reshaped data. Because you wan
 * Reference to the fact that these are percentiles, not direct rates or percentages
 * A citation for the dataset from Harvard Dataverse (recommended citations are there, as is metadata to use in a citation manager)
 * Acknowledgement of the data being removed from EPA's website that stays politically neutral
+
+```{r}
+#| label: ej-chart
+#| fig-width: 10
+#| fig-height: 8
+note_text <- paste(
+    "**Figure note.** Data come from the U.S. Environmental Protection Agency's Environmental Justice Screening and Mapping Tool (EJSCREEN), 2024 release, for Maryland's 1,460 census tracts.",
+    "*PM2.5* is the average concentration of fine particulate matter (particles 2.5 micrometers or smaller) in the air.",
+    "*NO2* is the annual average concentration of nitrogen dioxide in the air.",
+    "<br><br>Both axes are national percentiles, not concentrations or rates: a tract at the 25th percentile has a higher modeled value than about 25% of all U.S. tracts.",
+    "Due of this, a tract's position shows how it ranks, not how much pollution its residents breathe. The distance between two tracts on either axis is not a measure of how different their air is, but rather how that tract compares to others.",
+    "<br><br>EJSCREEN was hosted by the EPA until early 2025, when it was taken offline along with a number of other federal datasets. This analysis used the archived copy on Harvard Dataverse."
+)
+
+note_box <- gridtext::textbox_grob(
+    note_text,
+    x = 0, y = 0.5, hjust = 0, vjust = 0.5,
+    width = grid::unit(1, "npc"),
+    padding = grid::unit(c(10, 10, 10, 10), "pt"),
+    r = grid::unit(4, "pt"),
+    box_gp = grid::gpar(fill = "#F5F3F2", col = "#C0C0BB"),
+    gp = grid::gpar(fontsize = 9, lineheight = 1.25)
+)
+
+ggplot(ej_subset, aes(x = value_ptile_pm25, y = value_ptile_no2)) +
+    geom_jitter(alpha = 0.35, size = 1.6, color = "#137B80", width = 0.4, height = 0.4) +
+    scale_x_continuous(breaks = seq(0, 100, 25)) +
+    scale_y_continuous(breaks = seq(0, 100, 25)) +
+    coord_equal(xlim = c(0, 100), ylim = c(0, 100)) +
+    labs(x = "PM2.5, national percentile", y = "NO2, national percentile") +
+    theme_minimal() +
+    theme(panel.grid.minor = element_blank()) +
+    wrap_elements(full = note_box) +
+    plot_layout(widths = c(1.6, 1)) +
+    plot_annotation(
+        title = "Maryland tracts rank low nationally on PM2.5 but span the full range of NO2",
+        subtitle = "Source: EPA EJSCREEN 2024 (v2.3), archived at Harvard Dataverse. Each point is a MD census tract.",
+        caption = "*Citation:* U.S. Environmental Protection Agency. (2024). *Environmental justice mapping and screening tool (EJScreen)* (Version 4.0) [Data set]. Harvard Dataverse. doi.org/10.7910/DVN/RLR5AX",
+        theme = theme(
+            plot.title = element_text(size = 14, color = "#635F5D"),
+            plot.subtitle = element_text(color = "#635F5D", margin = margin(t = 4, b = 8)),
+            plot.caption = ggtext::element_textbox_simple(size = 8, color = "#635F5D", margin = margin(t = 8)),
+            axis.title = element_text(color = "#635F5D"),
+        )
+    )
+```
+
 
 ## Knowing your role
 
@@ -51,3 +134,130 @@ You also have some data, namely:
 * Additional ACS data on households' internet access and workers' commuting methods ("acs_addl.csv" in the same directory as this notebook)
 
 Draft two charts you can present to the outreach team at the agency to help them strategize. *Do* put forward what you believe to be information that will help them with this, but *do not* try to give answers you're not qualified to give.
+
+``` {r}
+#| label: looking
+
+unique(justviz::cdc$indicator)
+# definetly people with asthma more sensitive, epa (https://www.epa.gov/pmcourse/patient-exposure-and-air-quality-index) also lists people with diabetes
+
+```
+
+
+``` {r}
+#| label: filters
+
+region <- c("Baltimore city", "Baltimore County", "Anne Arundel County",
+            "Howard County", "Harford County")
+
+acs_region <- justviz::acs |>
+    filter(level == "tract", county %in% region) |>
+    select(tract = name, county, total_pop,
+                  ages00_17, ages65plus)
+    # ages under 18 and over 65 are more sensitive than typical adults to air quality
+
+cdc_region <- justviz::cdc |>
+    filter(level == "tract",
+                  indicator %in% c("Current asthma", "Diabetes")) |>
+    select(tract = location, indicator, value) |>
+    pivot_wider(names_from = indicator, values_from = value)
+
+region_df <- acs_region |>
+    left_join(cdc_region, by = "tract") |>
+    mutate(county = forcats::fct_relevel(county, region))
+
+glimpse(region_df)
+```
+``` {r}
+#| label: sensitive-groups-chart
+#| fig-width: 10
+#| fig-height: 7
+
+note_text <- paste(
+    "**For the outreach team.** AirNow names adults with asthma or other lung disease, adults with heart disease or diabetes, children, and adults 65 and older among the groups at greater risk from wildfire smoke. This chart shows where those groups make up a larger share of residents. Each dot is a census tract; the black line is the county median.",
+    "<br><br>**Health conditions are concentrated.** Tracts with the highest rates of adult asthma and diabetes are almost all in Baltimore city.",
+    "<br><br>**Age groups are spread out.** Tracts with many older adults or children appear in all five jurisdictions, and Howard County has the highest median share of children. Reaching these groups may mean working through different places in different areas, such as schools and child care in some tracts and senior housing in others.",
+    "<br><br>**Limits.** This chart does not show where smoke is or will be, and it is not a risk ranking. Asthma and diabetes are model-based estimates, so small differences between tracts may not be real. Which tracts to prioritize should be decided with public health staff, using current air quality forecasts."
+)
+
+note_box <- gridtext::textbox_grob(
+    note_text,
+    x = 0, y = 0.5, hjust = 0, vjust = 0.5,
+    width = grid::unit(1, "npc"),
+    padding = grid::unit(c(10, 10, 10, 10), "pt"),
+    r = grid::unit(4, "pt"),
+    box_gp = grid::gpar(fill = "#F5F3F2", col = "#C0C0BB"),
+    gp = grid::gpar(fontsize = 9, lineheight = 1.25)
+)
+
+sensitive_long <- region_df |>
+    mutate(ages00_17 = ages00_17 * 100, ages65plus = ages65plus * 100) |>
+    pivot_longer(
+        c(`Current asthma`, Diabetes, ages65plus, ages00_17),
+        names_to = "factor", values_to = "pct"
+    ) |>
+    mutate(factor = factor(factor,
+        levels = c("Current asthma", "Diabetes", "ages65plus", "ages00_17"),
+        labels = c("Adults with current asthma", "Adults with diabetes",
+                   "Residents 65 and older", "Residents under 18")))
+
+ggplot(sensitive_long, aes(x = pct, y = forcats::fct_rev(county))) +
+    geom_jitter(height = 0.2, width = 0, size = 1.4, alpha = 0.45, color = "#137B80") +
+    stat_summary(fun = median, geom = "point", shape = "|", size = 7, color = "black") +
+    scale_x_continuous(labels = scales::label_percent(scale = 1)) +
+    facet_wrap(vars(factor), ncol = 2, scales = "free_x") +
+    labs(x = NULL, y = NULL) +
+    theme_minimal() +
+    theme(panel.grid.minor = element_blank(), panel.grid.major.y = element_blank(),
+          strip.text = element_text(face = "bold", hjust = 0)) +
+    wrap_elements(full = note_box) +
+    plot_layout(widths = c(2.2, 1)) +
+    plot_annotation(
+        title = "Groups more sensitive to smoke are spread unevenly across the service area",
+        subtitle = "Share of each tract's residents; black lines mark the county median",
+        caption = "Asthma and diabetes: CDC PLACES model-based estimates for adults, 2023. Age: ACS 5-year estimates."
+    )
+```
+``` {r}
+#| label: chart-barriers
+#| fig-width: 10
+#| fig-height: 5.5
+acs_addl <- readr::read_csv("acs_addl.csv", show_col_types = FALSE)
+
+internet_df <- region_df |>
+    left_join(
+        acs_addl |> select(name, no_internet),
+        by = c("tract" = "name")
+    )
+
+note_text <- paste(
+    "**For the outreach team.** During smoke and heat events, AirNow and local agencies share air quality alerts, cooling center locations, and protective steps mostly online. This chart shows where households may be harder to reach that way. Each dot is a census tract; the black line marks the county median.",
+    "<br><br>**Internet access.** Households without internet may not see alerts, check air quality, or find cooling centers and clean-air spaces.",
+    "<br><br>**Where.** In Baltimore city, the median tract has 8% of households without internet, compared with 1% to 5% in the surrounding four counties.",
+    "<br><br>**Limits.** This chart does not show where smoke is, who is sick, or which outreach methods would work. Households without home internet may still use phones, and some groups, like older adults, may be easier to reach by phone, radio, TV, or in person."
+)
+
+note_box <- gridtext::textbox_grob(
+    note_text,
+    x = 0, y = 0.5, hjust = 0, vjust = 0.5,
+    width = grid::unit(1, "npc"),
+    padding = grid::unit(c(10, 10, 10, 10), "pt"),
+    r = grid::unit(4, "pt"),
+    box_gp = grid::gpar(fill = "#F5F3F2", col = "#C0C0BB"),
+    gp = grid::gpar(fontsize = 9, lineheight = 1.25)
+)
+
+ggplot(internet_df, aes(x = no_internet, y = forcats::fct_rev(county))) +
+    geom_jitter(height = 0.2, width = 0, size = 1.4, alpha = 0.45, color = "#137B80") +
+    stat_summary(fun = median, geom = "point", shape = "|", size = 7, color = "black") +
+    scale_x_continuous(labels = scales::label_percent()) +
+    labs(x = "Households without internet access", y = NULL) +
+    theme_minimal() +
+    theme(panel.grid.minor = element_blank(), panel.grid.major.y = element_blank()) +
+    wrap_elements(full = note_box) +
+    plot_layout(widths = c(1.6, 1)) +
+    plot_annotation(
+        title = "Where smoke and heat alerts may be harder to receive",
+        subtitle = "Share of each tract's households without internet access; black lines mark the county median"
+    )
+```
