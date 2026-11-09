@@ -17,15 +17,17 @@ First, search for an address within Maryland where you want to focus your map (d
 ```{r}
 #| label: center-pt
 # enter the coords inside c() as numbers in the order longitude, latitude
-center_coords <- sf::st_point(x = c())
-center_web_merc <- sf::st_sfc()
+# centered on my favorite trader joe's :) 
+# fun fact: a cashier last week told me this one is ranked 12th in the nation
+center_coords <- sf::st_point(x = c(-76.5399277, 38.9891423))
+center_web_merc <- sf::st_sfc(center_coords, crs = 4269)  # starting crs, census
 ```
 
 Now use `sf::st_transform()` to transform that to a CRS that uses feet and is focused on Maryland (2248). Verify that it has units "ftUS":
 
 ```{r}
 #| label: center-proj
-center_proj <- sf::st_transform()
+center_proj <- sf::st_transform(center_web_merc, 2248)
 center_proj
 ```
 
@@ -33,7 +35,7 @@ Create a buffer of 5 miles around that center point (1 mile = 5280 feet) (feel f
 
 ```{r}
 #| label: buff
-center_buff <- sf::st_buffer(center_proj, dist = 5 * 5280)
+center_buff <- sf::st_buffer(center_proj, dist = 10 * 5280)
 center_buff
 
 # very boring plot
@@ -49,8 +51,10 @@ tracts_sf <- tigris::tracts(state = "MD", cb = TRUE) |>
   dplyr::select(geoid = GEOID, county = NAMELSADCO)
 counties_sf <- tracts_sf |>
   # group by counties & summarise
+  dplyr::group_by(county) |>
+  dplyr::summarise()
 
-  ggplot(counties_sf) +
+ggplot(counties_sf) +
   geom_sf()
 ```
 
@@ -58,7 +62,8 @@ Get the intersection of the buffer and the tract shapes. To do this, they'll nee
 
 ```{r}
 #| label: intersection
-buff_reproj <- sf::st_transform(center_buff)
+
+buff_reproj <- sf::st_transform(center_buff, sf::st_crs(tracts_sf))
 tracts_in_buffer <- sf::st_intersection(tracts_sf, buff_reproj)
 tracts_in_buffer
 
@@ -77,7 +82,7 @@ There are a few ways to do this, but we'll make a sparse matrix of which countie
 
 ```{r}
 #| label: intersects
-counties_mask <- sf::st_intersects()
+counties_mask <- sf::st_intersects(counties_sf, buff_reproj)
 counties_mask
 lengths(counties_mask)
 
@@ -94,7 +99,10 @@ My ugly example looks like this:
 
 ```{r}
 #| label: everything
-ggplot()
+ggplot() +
+  geom_sf(data = nearby_counties, fill = "#E5E2E0", color = "gray40", linewidth = 0.6) +
+  geom_sf(data = tracts_in_buffer, fill = "#137B80", color = "white", linewidth = 0.2, alpha = 0.8) +
+  geom_sf(data = center_web_merc, color = "#E6842A", size = 3) 
 ```
 
 
@@ -112,7 +120,16 @@ My example is here. It's chaotic to highlight the different settings you can use
 
 ```{r}
 #| label: layers
+state_sf <- tracts_sf |>
+  dplyr::summarise()
 
+ggplot() +
+  geom_sf(data = tracts_sf, fill = "white", color = "gray70", linewidth = 0.1) +
+  geom_sf(data = counties_sf, fill = NA, color = "gray25", linewidth = 0.5) +
+  geom_sf(data = state_sf, fill = NA, color = "black", linewidth = 1)
+# state shown in thick line
+# counties as thinner gray line
+# tracts as light grey lines
 ```
 
 ## Legend hacking
@@ -138,6 +155,24 @@ My example here took 3 calls to `geom_sf`; 3 manual scales, one of which needed 
 #| label: legend
 nearby_tracts <- tracts_sf |>
   dplyr::filter(county %in% nearby_counties$county)
+
+ggplot() +
+  # all tracts in the nearby counties: fake color + linewidth aesthetics
+  geom_sf(aes(color = "Tracts", linewidth = "Tracts"),
+          data = nearby_tracts, fill = "gray97", show.legend = "line") +
+  # the buffered area: fake fill aesthetic, no borders
+  geom_sf(aes(fill = "Within 5 miles"),
+          data = tracts_in_buffer, color = NA, alpha = 0.6) +
+  # county outlines on top
+  geom_sf(aes(color = "Counties", linewidth = "Counties"),
+          data = nearby_counties, fill = NA, show.legend = "line") +
+  scale_color_manual(values = c(Counties = "gray20", Tracts = "gray65")) +
+  scale_linewidth_manual(values = c(Counties = 0.8, Tracts = 0.2)) +
+  scale_fill_manual(values = c("Within 5 miles" = "#5b9bd5"),
+                    guide = guide_legend(override.aes = list(linewidth = 0, color = NA))) +
+  # same (empty) name for color and linewidth merges them into one legend
+  labs(color = NULL, linewidth = NULL, fill = NULL) +
+  theme_void()
 ```
 
 ## Joins

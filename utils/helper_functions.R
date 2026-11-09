@@ -87,6 +87,7 @@ sunlight <- function () {
       
       plot.title.position   = "plot",
       plot.caption.position = "plot",
-      plot.margin = margin(22, 22, 0, 22)
+      plot.margin = margin(22, 22, 0, 22),
+      legend.position = none
     )
 }
