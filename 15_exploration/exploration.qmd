@@ -68,6 +68,35 @@ Once you've done some EDA, find something to explore in more detail and develop 
 * zooming in on a focus area
 * multiple charts in a series
 
+
+```{r}
+#| label: eda
+
+# all top-lvl categories
+justviz::spending |>
+    dplyr::distinct(l2)
+
+# what's in each category?
+justviz::spending |>
+    dplyr::filter(l2 == "Food") |>
+    dplyr::select(item, l2:l5)
+
+# counts in each cat
+justviz::spending |>
+    dplyr::filter(!is.na(l2), !is.na(l3)) |>
+    dplyr::count(l2, sort = TRUE)
+
+# 
+top_cats <- justviz::spending |>
+    # top-level categories only
+    dplyr::filter(!is.na(l2), is.na(l3)) |>
+    # order categories by qtotal spending amount
+    dplyr::mutate(
+        share = qtotal / total,
+        l2 = forcats::fct_reorder(l2, qtotal)
+    )
+```
+
 ## Revising a chart
 
 Now that you've practiced creating explorations for your reader, do the same with a chart of your own. If you're not sick of your midterm data, try one of the charts you made for your project; otherwise, revise a chart from a previous lab. Start with overview data---averages, higher geographies, larger groups---then zoom in in whatever way might be appropriate for the data. Use facets and/or multiple charts to do this, including different types of charts.

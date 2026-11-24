@@ -1,0 +1,264 @@
+# Working with basemaps
+
+
+## Getting an API key
+
+Let’s practice getting basemaps from a few different services and using
+them for mapping with ggplot. Since most services require an API key,
+sign up for 1 or 2. Depending on the service, you’ll have a different
+route to getting your API key, but there should be documentation to
+help. Once you find your key, copy it and go back to RStudio/Positron.
+
+Now you’ll want to safely store your key by writing it to an environment
+variable (envvar for short) in one of 2 ways:
+
+- If you know where your `.Renviron` file is stored, open that in
+  RStudio/Positron/another plain text editor
+- Otherwise, *in your console* (not this notebook), call
+  `usethis::edit_r_environ()` to have the file opened for you (might
+  need to install that package)
+
+Then you’ll need to add a line to the file in the format
+`ENVIRONMENT_VARIABLE_NAME="value"`. Envvars are traditionally written
+in all caps, and you shouldn’t put spaces around the equal sign. The
+`basemaps` package doesn’t have standard envvar names it looks for, but
+name it something obvious like `MAPTILER_TOKEN`. If you sign up for
+multiple API keys, do this for each one on a new line.
+
+Save the file, close it, and restart your R session so the envvars can
+be read into this session. Now if you type *in the console*
+`Sys.getenv("MAPTILER_TOKEN")` or whatever you called a variable, you
+should see your key *in the console*.
+
+## Getting a basemap
+
+``` r
+library(ggplot2)
+```
+
+    Warning: package 'ggplot2' was built under R version 4.5.3
+
+``` r
+library(sf)
+```
+
+    Warning: package 'sf' was built under R version 4.5.3
+
+    Linking to GEOS 3.14.1, GDAL 3.12.1, PROJ 9.7.1; sf_use_s2() is TRUE
+
+Now that you have an API key for a maptiles service, it’s time to get a
+basemap. First you need a bounding box. Start with a smaller area, like
+a single county (you can filter `justviz::tracts_sf` by county) or a
+buffer around a point (look back at lab 13). Once you have an `sf`
+object, transform it to Web Mercator (3857), get its bounding box with
+`sf::st_bbox`, and save it to a variable.
+
+``` r
+howard <- justviz::tracts_sf |>
+  dplyr::filter(county == "Howard County") |>
+  st_transform(3857)
+
+howard_bbox <- st_bbox(howard)
+howard_bbox
+```
+
+        xmin     ymin     xmax     ymax 
+    -8592430  4736457 -8537880  4774669 
+
+Use the `basemaps` package (might need to install it too) to find the
+names of services and their available basemap styles.
+
+``` r
+maptypes <- basemaps::get_maptypes()
+# names of available map services
+names(maptypes)
+```
+
+    [1] "osm"               "osm_stamen"        "osm_stadia"       
+    [4] "osm_thunderforest" "carto"             "mapbox"           
+    [7] "esri"              "maptiler"         
+
+``` r
+# see what styles are available for your service
+maptypes[["maptiler"]]
+```
+
+     [1] "aquarelle"       "aquarelle_dark"  "aquarelle_vivid" "backdrop"       
+     [5] "basic"           "bright"          "dataviz"         "landscape"      
+     [9] "ocean"           "outdoor"         "satellite"       "streets"        
+    [13] "toner"           "topo"            "winter"         
+
+Then grab the basemap and save it as a `terra` object. Fill in the
+`map_token` argument with `Sys.getenv("NAME_OF_YOUR_TOKEN_ENVVAR")`.
+
+``` r
+basemap <- basemaps::basemap_terra(
+  ext = howard,
+  map_service = "maptiler",
+  map_type = "backdrop",
+  map_token = Sys.getenv("MAPTILER_TOKEN")
+) 
+```
+
+    Loading basemap 'backdrop' from map service 'maptiler'...
+
+    Warning in CPL_gdalbuildvrt(if (missing(source)) character(0) else source, :
+    GDAL Message 6: Band data type of Byte cannot represent the specified NoData
+    value of -9999
+    Warning in CPL_gdalbuildvrt(if (missing(source)) character(0) else source, :
+    GDAL Message 6: Band data type of Byte cannot represent the specified NoData
+    value of -9999
+    Warning in CPL_gdalbuildvrt(if (missing(source)) character(0) else source, :
+    GDAL Message 6: Band data type of Byte cannot represent the specified NoData
+    value of -9999
+    Warning in CPL_gdalbuildvrt(if (missing(source)) character(0) else source, :
+    GDAL Message 6: Band data type of Byte cannot represent the specified NoData
+    value of -9999
+    Warning in CPL_gdalbuildvrt(if (missing(source)) character(0) else source, :
+    GDAL Message 6: Band data type of Byte cannot represent the specified NoData
+    value of -9999
+    Warning in CPL_gdalbuildvrt(if (missing(source)) character(0) else source, :
+    GDAL Message 6: Band data type of Byte cannot represent the specified NoData
+    value of -9999
+    Warning in CPL_gdalbuildvrt(if (missing(source)) character(0) else source, :
+    GDAL Message 6: Band data type of Byte cannot represent the specified NoData
+    value of -9999
+    Warning in CPL_gdalbuildvrt(if (missing(source)) character(0) else source, :
+    GDAL Message 6: Band data type of Byte cannot represent the specified NoData
+    value of -9999
+    Warning in CPL_gdalbuildvrt(if (missing(source)) character(0) else source, :
+    GDAL Message 6: Band data type of Byte cannot represent the specified NoData
+    value of -9999
+    Warning in CPL_gdalbuildvrt(if (missing(source)) character(0) else source, :
+    GDAL Message 6: Band data type of Byte cannot represent the specified NoData
+    value of -9999
+    Warning in CPL_gdalbuildvrt(if (missing(source)) character(0) else source, :
+    GDAL Message 6: Band data type of Byte cannot represent the specified NoData
+    value of -9999
+    Warning in CPL_gdalbuildvrt(if (missing(source)) character(0) else source, :
+    GDAL Message 6: Band data type of Byte cannot represent the specified NoData
+    value of -9999
+    Warning in CPL_gdalbuildvrt(if (missing(source)) character(0) else source, :
+    GDAL Message 6: Band data type of Byte cannot represent the specified NoData
+    value of -9999
+    Warning in CPL_gdalbuildvrt(if (missing(source)) character(0) else source, :
+    GDAL Message 6: Band data type of Byte cannot represent the specified NoData
+    value of -9999
+    Warning in CPL_gdalbuildvrt(if (missing(source)) character(0) else source, :
+    GDAL Message 6: Band data type of Byte cannot represent the specified NoData
+    value of -9999
+    Warning in CPL_gdalbuildvrt(if (missing(source)) character(0) else source, :
+    GDAL Message 6: Band data type of Byte cannot represent the specified NoData
+    value of -9999
+    Warning in CPL_gdalbuildvrt(if (missing(source)) character(0) else source, :
+    GDAL Message 6: Band data type of Byte cannot represent the specified NoData
+    value of -9999
+    Warning in CPL_gdalbuildvrt(if (missing(source)) character(0) else source, :
+    GDAL Message 6: Band data type of Byte cannot represent the specified NoData
+    value of -9999
+    Warning in CPL_gdalbuildvrt(if (missing(source)) character(0) else source, :
+    GDAL Message 6: Band data type of Byte cannot represent the specified NoData
+    value of -9999
+    Warning in CPL_gdalbuildvrt(if (missing(source)) character(0) else source, :
+    GDAL Message 6: Band data type of Byte cannot represent the specified NoData
+    value of -9999
+    Warning in CPL_gdalbuildvrt(if (missing(source)) character(0) else source, :
+    GDAL Message 6: Band data type of Byte cannot represent the specified NoData
+    value of -9999
+    Warning in CPL_gdalbuildvrt(if (missing(source)) character(0) else source, :
+    GDAL Message 6: Band data type of Byte cannot represent the specified NoData
+    value of -9999
+    Warning in CPL_gdalbuildvrt(if (missing(source)) character(0) else source, :
+    GDAL Message 6: Band data type of Byte cannot represent the specified NoData
+    value of -9999
+    Warning in CPL_gdalbuildvrt(if (missing(source)) character(0) else source, :
+    GDAL Message 6: Band data type of Byte cannot represent the specified NoData
+    value of -9999
+    Warning in CPL_gdalbuildvrt(if (missing(source)) character(0) else source, :
+    GDAL Message 6: Band data type of Byte cannot represent the specified NoData
+    value of -9999
+    Warning in CPL_gdalbuildvrt(if (missing(source)) character(0) else source, :
+    GDAL Message 6: Band data type of Byte cannot represent the specified NoData
+    value of -9999
+    Warning in CPL_gdalbuildvrt(if (missing(source)) character(0) else source, :
+    GDAL Message 6: Band data type of Byte cannot represent the specified NoData
+    value of -9999
+    Warning in CPL_gdalbuildvrt(if (missing(source)) character(0) else source, :
+    GDAL Message 6: Band data type of Byte cannot represent the specified NoData
+    value of -9999
+    Warning in CPL_gdalbuildvrt(if (missing(source)) character(0) else source, :
+    GDAL Message 6: Band data type of Byte cannot represent the specified NoData
+    value of -9999
+    Warning in CPL_gdalbuildvrt(if (missing(source)) character(0) else source, :
+    GDAL Message 6: Band data type of Byte cannot represent the specified NoData
+    value of -9999
+    Warning in CPL_gdalbuildvrt(if (missing(source)) character(0) else source, :
+    GDAL Message 6: Band data type of Byte cannot represent the specified NoData
+    value of -9999
+    Warning in CPL_gdalbuildvrt(if (missing(source)) character(0) else source, :
+    GDAL Message 6: Band data type of Byte cannot represent the specified NoData
+    value of -9999
+    Warning in CPL_gdalbuildvrt(if (missing(source)) character(0) else source, :
+    GDAL Message 6: Band data type of Byte cannot represent the specified NoData
+    value of -9999
+    Warning in CPL_gdalbuildvrt(if (missing(source)) character(0) else source, :
+    GDAL Message 6: Band data type of Byte cannot represent the specified NoData
+    value of -9999
+    Warning in CPL_gdalbuildvrt(if (missing(source)) character(0) else source, :
+    GDAL Message 6: Band data type of Byte cannot represent the specified NoData
+    value of -9999
+    Warning in CPL_gdalbuildvrt(if (missing(source)) character(0) else source, :
+    GDAL Message 6: Band data type of Byte cannot represent the specified NoData
+    value of -9999
+
+``` r
+ggplot() +
+  tidyterra::geom_spatraster_rgb(data = basemap) +
+  coord_sf(crs = 3857, expand = FALSE) + 
+  theme_void()
+```
+
+    <SpatRaster> resampled to 500240 cells.
+
+![](basemaps_files/figure-commonmark/fetch-basemap-1.png)
+
+## Data + basemap
+
+Now that you have a basemap, add some data on top of it. You can use the
+basemap as the background for a choropleth you’ve already done, or add
+point data, or whatever else you’d like. Unless the data you use happens
+to have the same bounding box as your basemap, you’ll probably need to
+crop, filter, or in some other way subset the data to fit neatly. See
+examples in this week’s notes.
+
+``` r
+howard_acs <- justviz::acs |>
+  dplyr::filter(level == "tract") |>
+  dplyr::select(geoid = name, median_hh_income)
+
+howard_income_sf <- howard |>
+    dplyr::left_join(howard_acs, by = "geoid")
+
+ggplot() +
+  tidyterra::geom_spatraster_rgb(data = basemap) +
+  geom_sf(data = howard_income_sf, 
+          aes(fill = median_hh_income),
+          color = "white", 
+          linewidth = 0.15, 
+          alpha = 0.6) + 
+  scale_fill_viridis_c(labels = scales::label_dollar(), 
+                       option = "mako", 
+                       direction = -1, 
+                       na.value = "transparent") +
+  coord_sf(crs = 3857, expand = FALSE) +
+  labs(
+    title = "Median Household Income by Census Tract",
+    subtitle = "Howard County, MD", 
+    caption = "Source: ACS data via justviz, Basemap: MapTiler",
+    fill = "Median HH income"
+  )
+```
+
+    <SpatRaster> resampled to 500240 cells.
+
+![](basemaps_files/figure-commonmark/data-plus-basemap-1.png)

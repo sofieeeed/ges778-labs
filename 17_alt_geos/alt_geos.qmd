@@ -10,6 +10,7 @@ format: gfm
 library(ggplot2)
 library(sf) 
 library(terra)
+library(dplyr)
 
 tracts_sf <- tigris::tracts(state = "MD", cb = TRUE) |>
     dplyr::select(tract = GEOID, county = NAMELSADCO)
@@ -20,11 +21,126 @@ counties_sf <- tigris::counties(state = 'MD', cb = TRUE) |>
 We're going to do some experiments. Start with basic choropleths. Use either the ACS data or CDC data so you can try the same techniques for both counties and tracts.
 
 ```{r}
-#| label: basic-choro 
+#| label: basic-choro
 
+county_cdc <- justviz::cdc |>
+    filter(level == "county", indicator == "Depression") |>
+    select(county = location, value, pop)
+
+tract_cdc <- justviz::cdc |>
+    filter(level == "tract", indicator == "Depression") |>
+    select(tract = location, value, pop)
+
+counties_cdc_sf <- counties_sf |>
+    left_join(county_cdc, by = "county") |>
+    st_transform(26985)
+
+tracts_cdc_sf <- tracts_sf |>
+    left_join(tract_cdc, by = "tract") |>
+    st_transform(26985)
+
+ggplot(counties_cdc_sf) +
+    geom_sf(aes(fill = value), 
+            color = "white", 
+            linewidth = 0.2) +
+    scale_fill_viridis_c(labels = scales::label_percent(scale = 1), 
+                         option = "magma", 
+                         direction = -1) +
+    labs(title = paste("Depression rates in Maryland Counties"), fill = NULL) 
+
+ggplot(tracts_cdc_sf) +
+    geom_sf(aes(fill = value), 
+            color = NA) +
+    geom_sf(data = counties_cdc_sf, 
+            fill = NA, 
+            color = "white", 
+            linewidth = 0.3) +
+    scale_fill_viridis_c(labels = scales::label_percent(scale = 1), 
+                         option = "magma", 
+                         direction = -1) +
+    labs(title = paste("Depression rates in Maryland census tracts"), fill = NULL) 
 ```
 
 Now try some of the adjustments from the notes: get centroids and make bubble maps; try cartograms; scale opacity by some useful population measure. Do the techniques that work for the state's 24 counties work as well for all 1,464 tracts? What about for tracts within just one or two counties---at what point do things get too cluttered?
+
+```{r}
+#| label: bubble
+
+county_pts <- st_point_on_surface(counties_cdc_sf)
+tract_pts <- st_point_on_surface(tracts_cdc_sf)
+
+# counties
+ggplot() +
+    geom_sf(data = counties_cdc_sf, 
+            fill = "grey95", 
+            color = "grey70", 
+            linewidth = 0.2) +
+    geom_sf(data = county_pts, 
+            aes(size = pop, 
+                color = value), 
+            alpha = 0.85) +
+    scale_size_area(max_size = 14,
+                    labels = scales::label_comma()) +
+    scale_color_viridis_c(labels = scales::label_percent(scale = 1), 
+                          option = "magma", 
+                          direction = -1) +
+    labs(title = "Depression rates in Maryland counties",
+         subtitle = "Bubbles sized by population",
+         size = "Population", 
+         color = "Depression") +
+  theme_void()
+
+# tracts
+tract_depression <- 
+  ggplot() +
+    geom_sf(data = tracts_cdc_sf, 
+            fill = "gray95", 
+            color = "gray70", 
+            linewidth = 0.2) +
+    geom_sf(data = tract_pts, 
+            aes(size = pop, 
+                color = value), 
+            alpha = 0.85) +
+    scale_size_area(max_size = 5,
+                    labels = scales::label_comma()) +
+    scale_color_viridis_c(labels = scales::label_percent(scale = 1), 
+                          option = "magma", 
+                          direction = -1,
+                          na.value = "grey50") +
+    labs(title = "Depression rates in Maryland census tracts",
+         subtitle = "Bubbles sized by population",
+         size = "Population", 
+         color = "Depression") +
+  theme_void()
+
+ggsave(here::here("plots", "tract_depression_bubble.png"),
+       tract_depression, dpi = 300)
+```
+```{r}
+#| label: cartograms
+
+county_carto <- cartogram::cartogram_cont(counties_cdc_sf, weight = "pop", itermax = 10)
+
+depression_carto <-
+  ggplot(county_carto) +
+    geom_sf(aes(fill = value), 
+            color = "white", 
+            linewidth = 0.2) +
+    scale_fill_viridis_c(labels = scales::label_percent(scale = 1), 
+                         option = "magma", 
+                         direction = -1) +
+    labs(
+      title = "Depression rates in Maryland Counties", 
+      subtitle = "Counties sized by population",
+      fill = "Depression:"
+      ) +
+  theme_void()
+
+ggsave(here::here("plots", "depression_carto.png"),
+       depression_carto, dpi = 300)
+```
+
+
 
 ## Simplifying points
 
@@ -44,6 +160,60 @@ Map your gridded data. Pay attention to color palettes that work well. If there 
 
 ```{r}
 #| label: grids
+
+balt_sf <- counties_sf |>
+    filter(county == "Baltimore city") |>
+    st_transform(26985)
+
+art <- justviz::art_sf |>
+    st_transform(26985) |>
+    st_filter(balt_sf)
+
+# 500m grid
+grid_size <- 
+  st_make_grid(balt_sf, 
+               cellsize = 500) |>
+    st_as_sf() |>
+    st_filter(balt_sf)
+grid_size$n <- lengths(st_intersects(grid_size, art))
+
+ggplot() +
+    geom_sf(data = grid_size, 
+            aes(fill = n), 
+            color = NA) +
+    geom_sf(data = balt_sf, 
+            fill = NA, 
+            color = "gray20", 
+            linewidth = 0.4) +
+    scale_fill_viridis_c(option = "magma", 
+                         direction = -1, 
+                         trans = "sqrt") +
+    labs(
+      title = "Public art in Baltimore, 500 m grid", 
+      fill = "Artworks"
+         ) +
+    theme_void()
+
+# hexagon grid
+grid_hex <- 
+  st_make_grid(balt_sf, 
+               cellsize = 500, 
+               square = FALSE) |>
+    st_as_sf() |>
+    st_filter(balt_sf)
+grid_hex$n <- lengths(st_intersects(grid_hex, art))
+
+art_hex <- ggplot() +
+    geom_sf(data = grid_hex, aes(fill = n), color = NA) +
+    geom_sf(data = balt_sf, fill = NA, color = "gray20", linewidth = 0.4) +
+    scale_fill_viridis_c(option = "magma", direction = -1, trans = "sqrt") +
+    labs(
+      title = "Public art in Baltimore, 500 m hexagons", 
+      fill = "Artworks"
+         ) +
+    theme_void()
+art_hex
+
  
 ```
 
@@ -53,6 +223,24 @@ Now take the same points and map their density. You can try the easy method (`ge
 
 ```{r}
 #| label: densities
+
+art_xy <- as.data.frame(st_coordinates(art))
+
+ggplot() +
+    geom_density_2d_filled(data = art_xy, 
+                           aes(X, Y), 
+                           bins = 8, 
+                           alpha = 0.9) +
+    geom_sf(data = balt_sf, 
+            fill = NA, 
+            color = "gray20", 
+            linewidth = 0.4) +
+    scale_fill_viridis_d(option = "magma", 
+                         direction = -1) +
+    labs(
+      title = "Density of public art (geom_density_2d_filled)",
+      fill = "Density level") +
+    theme_void()
  
 ```
 

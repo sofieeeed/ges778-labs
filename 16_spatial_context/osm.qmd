@@ -23,6 +23,8 @@ library(sf)
 # do whatever you want to get an area to work with,
 # then get its bbox
 
+bbox <- osmdata::getbb("Frederick, Maryland")
+
 ```
 
 
@@ -54,7 +56,6 @@ roads <- osmdata::opq(bbox) |>
         )
     ) |>
     osmdata::osmdata_sf()
-
 ```
 
 Look at the structure and different geometry types of each object you get back (lines, polygons, points). Also think critically about what data makes sense for the location types---if you get data for roads, and one of the things returned is 25,000 points, those are probably the mess of nodes that make up the curves of the lines. There are probably tons of attributes in your data, and you likely need very few of them if any. You might need to do some clean up or change data types of some of the attributes to work with them---see the notes where I converted the number of lanes to numeric in order to draw roads with different widths. You also might need to do spatial operations like cropping.

@@ -29,7 +29,14 @@ Now that you have an API key for a maptiles service, it's time to get a basemap.
 
 ```{r}
 #| label: bbox 
- 
+
+howard <- justviz::tracts_sf |>
+  dplyr::filter(county == "Howard County") |>
+  st_transform(3857)
+
+howard_bbox <- st_bbox(howard)
+howard_bbox
+
 ```
 
 Use the `basemaps` package (might need to install it too) to find the names of services and their available basemap styles.
@@ -48,10 +55,17 @@ Then grab the basemap and save it as a `terra` object. Fill in the `map_token` a
 
 ```{r}
 #| label: fetch-basemap 
-basemap <- basemaps::basemap_terra() 
+basemap <- basemaps::basemap_terra(
+  ext = howard,
+  map_service = "maptiler",
+  map_type = "backdrop",
+  map_token = Sys.getenv("MAPTILER_TOKEN")
+) 
 
 ggplot() +
-    tidyterra::geom_spatraster_rgb(data = basemap)
+  tidyterra::geom_spatraster_rgb(data = basemap) +
+  coord_sf(crs = 3857, expand = FALSE) + 
+  theme_void()
 ```
 
 ## Data + basemap
@@ -62,4 +76,29 @@ Now that you have a basemap, add some data on top of it. You can use the basemap
 ```{r}
 #| label: data-plus-basemap 
  
+howard_acs <- justviz::acs |>
+  dplyr::filter(level == "tract") |>
+  dplyr::select(geoid = name, median_hh_income)
+
+howard_income_sf <- howard |>
+    dplyr::left_join(howard_acs, by = "geoid")
+
+ggplot() +
+  tidyterra::geom_spatraster_rgb(data = basemap) +
+  geom_sf(data = howard_income_sf, 
+          aes(fill = median_hh_income),
+          color = "white", 
+          linewidth = 0.15, 
+          alpha = 0.6) + 
+  scale_fill_viridis_c(labels = scales::label_dollar(), 
+                       option = "mako", 
+                       direction = -1, 
+                       na.value = "transparent") +
+  coord_sf(crs = 3857, expand = FALSE) +
+  labs(
+    title = "Median Household Income by Census Tract",
+    subtitle = "Howard County, MD", 
+    caption = "Source: ACS data via justviz, Basemap: MapTiler",
+    fill = "Median HH income"
+  )
 ```
